@@ -1,0 +1,187 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cyber Security Automation - Zeek Protocol Analysis</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 font-sans">
+    <!-- Header -->
+    <header class="bg-blue-900 text-white py-4">
+        <div class="container mx-auto px-4 flex items-center">
+            <img src="https://www.roehampton.ac.uk/globalassets/images/logo.png" alt="University of Roehampton Logo" class="h-12 mr-4">
+            <div>
+                <h1 class="text-2xl font-bold">Cyber Security Automation - CMP020L022S</h1>
+                <p class="text-lg">Security Monitoring Competency Experience Team 02</p>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-4 py-8">
+        <!-- Introduction -->
+        <section id="introduction" class="mb-8">
+            <h2 class="text-3xl font-semibold text-blue-900 mb-4">Introduction</h2>
+            <p class="text-gray-700 leading-relaxed">
+                This project focuses on deploying Zeek, a robust network security monitoring tool, for protocol analysis. The objective was to monitor network traffic, develop custom scripts for HTTP POST request detection, and automate alerts and reporting using Python. All scripts and configurations were crafted to ensure efficient monitoring within the specified environment.
+            </p>
+            <p class="text-gray-700 mt-2">
+                <strong>GitHub Repository:</strong> <a href="#" class="text-blue-600 hover:underline">Link to Repository</a> (Update with your repository URL)
+            </p>
+        </section>
+
+        <!-- Zeek Setup and Configuration -->
+        <section id="setup" class="mb-8">
+            <h2 class="text-3xl font-semibold text-blue-900 mb-4">Zeek Setup and Configuration</h2>
+            <p class="text-gray-700 leading-relaxed">
+                Zeek was installed and configured on a sensor system with the following steps:
+            </p>
+            <ul class="list-disc pl-6 text-gray-700">
+                <li>Update package lists: <code class="bg-gray-200 px-1 rounded">sudo apt update</code></li>
+                <li>Install Zeek: <code class="bg-gray-200 px-1 rounded">sudo apt install zeek -y</code></li>
+                <li>Configure logs: <code class="bg-gray-200 px-1 rounded">sudo nano /nsm/zeek/logs/current/</code></li>
+                <li>Edit node configuration: <code class="bg-gray-200 px-1 rounded">sudo nano /opt/zeek/etc/node.cfg</code></li>
+                <li>Run Zeek on interface eth1: <code class="bg-gray-200 px-1 rounded">sudo zeek -i eth1 /usr/local/zeek/share/zeek/site/local.zeek</code></li>
+            </ul>
+            <p class="text-gray-700 mt-2">
+                The configuration included setting the worker type, localhost, and eth1 interface.
+            </p>
+        </section>
+
+        <!-- Custom Scripts -->
+        <section id="scripts" class="mb-8">
+            <h2 class="text-3xl font-semibold text-blue-900 mb-4">Custom Scripts</h2>
+            <p class="text-gray-700 leading-relaxed">
+                Custom Zeek and Python scripts were developed to analyze HTTP POST requests to 192.168.115.5.
+            </p>
+            <h3 class="text-xl font-semibold text-blue-900 mt-4">Zeek Script (local.zeek)</h3>
+            <pre class="bg-gray-800 text-white p-4 rounded"><code>
+event http_request(c: connection, method: string, original_URI: string, unescaped_URI: string, version: string)
+{
+    if (method == "POST" && c$id$resp_h == 192.168.115.5) {
+        print fmt("POST to Auth/Dev from %s: %s", c$id$orig_h, original_URI);
+    }
+}
+            </code></pre>
+            <p class="text-gray-700 mt-2">
+                The script was deployed using: <code class="bg-gray-200 px-1 rounded">sudo ./bin/zeekctl deploy</code>
+            </p>
+        </section>
+
+        <!-- Testing -->
+        <section id="testing" class="mb-8">
+            <h2 class="text-3xl font-semibold text-blue-900 mb-4">Testing</h2>
+            <p class="text-gray-700 leading-relaxed">
+                A test server was set up to verify Zeek's functionality:
+            </p>
+            <ul class="list-disc pl-6 text-gray-700">
+                <li>Test VM: <code class="bg-gray-200 px-1 rounded">sudo python3 -m http.server 80 --bind 192.168.115.5</code></li>
+                <li>Logs checked: <code class="bg-gray-200 px-1 rounded">/nsm/zeek/logs/current/https.log</code></li>
+            </ul>
+            <p class="text-gray-700 mt-2">
+                The tests confirmed Zeek's ability to capture and log HTTP POST requests.
+            </p>
+        </section>
+
+        <!-- Automation and Reporting -->
+        <section id="automation" class="mb-8">
+            <h2 class="text-3xl font-semibold text-blue-900 mb-4">Automation and Reporting</h2>
+            <p class="text-gray-700 leading-relaxed">
+                A Python script was implemented to query Elasticsearch for event counts and generate daily reports.
+            </p>
+            <h3 class="text-xl font-semibold text-blue-900 mt-4">Python Script</h3>
+            <pre class="bg-gray-800 text-white p-4 rounded"><code>
+from elasticsearch import Elasticsearch
+from datetime import datetime
+
+# Connect to Elasticsearch instance
+es = Elasticsearch(['192.168.115.1:9200'])
+
+# Query to count events from the last 24 hours
+query = {
+    "range": {
+        "@timestamp": {
+            "gte": "now-1d/d"  # Events from the start of the day, one day ago
+        }
+    }
+}
+
+# Execute the count query on all Security Onion indices
+res = es.count(index="so-*", query=query)
+
+# Write the result to a daily report file
+report_path = "/reports/daily_report.txt"
+with open(report_path, "a") as f:
+    f.write(f"{datetime.now()}: {res['count']} events on 192.168.115.0/24\n")
+            </code></pre>
+        </section>
+
+        <!-- Conclusion -->
+        <section id="conclusion" class="mb-8">
+            <h2 class="text-3xl font-semibold text-blue-900 mb-4">Conclusion</h2>
+            <p class="text-gray-700 leading-relaxed">
+                The Zeek-based system was successfully deployed, capturing HTTP POST requests and generating automated reports. This scalable solution offers potential for future enhancements in alerting and integration.
+            </p>
+        </section>
+
+        <!-- References -->
+        <section id="references" class="mb-8">
+            <h2 class="text-3xl font-semibold text-blue-900 mb-4">References</h2>
+            <ul class="list-disc pl-6 text-gray-700">
+                <li><a href="https://docs.zeek.org/en/master/" class="text-blue-600 hover:underline">Zeek Documentation</a></li>
+                <li><a href="https://elasticsearch-py.readthedocs.io/en/latest/" class="text-blue-600 hover:underline">Elasticsearch Python Client</a></li>
+                <li><a href="https://docs.securityonion.net/en/2.3/" class="text-blue-600 hover:underline">Security Onion Documentation</a></li>
+            </ul>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-blue-900 text-white py-4">
+        <div class="container mx-auto px-4">
+            <p>Submitted by: Mohamed Abisheik Mohamed Ali (A00037677)</p>
+            <p>MSc. Cybersecurity, University of Roehampton</p>
+            <p>Course Lecturer: Dr. Charles Clarke</p>
+        </div>
+    </footer>
+</body>
+</html>
